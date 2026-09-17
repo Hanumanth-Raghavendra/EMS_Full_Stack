@@ -1,0 +1,22 @@
+# Backend
+hr-service/target/
+hr-service/.mvn/timing.properties
+hr-service/src/main/resources/application.properties
+
+# Frontend
+hr-frontend/node_modules/
+hr-frontend/dist/
+hr-frontend/.env
+hr-frontend/.env.*
+
+# IDE
+.idea/
+.vscode/*.log
+
+# OS
+.DS_Store
+Thumbs.db
+# Local backup / patch artifacts
+EMS_Backups/
+PatchFiles/
+hr-service-current-source.zip
