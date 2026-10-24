@@ -1,17 +1,30 @@
 package com.example.hr_service.controller;
 
+import com.example.hr_service.dto.PasswordResetRequest;
+import com.example.hr_service.dto.UserCreateRequest;
+import com.example.hr_service.dto.UserResponse;
+import com.example.hr_service.dto.UserUpdateRequest;
+import com.example.hr_service.service.UserService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
 import java.util.List;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import jakarta.validation.Valid;
-
-import com.example.hr_service.dto.UserRequestDTO;
-import com.example.hr_service.dto.UserResponseDTO;
-import com.example.hr_service.service.UserService;
-
+/** Account management. HR may manage EMPLOYEE accounts only (enforced in UserService). */
 @RestController
 @RequestMapping("/api/users")
+@PreAuthorize(Access.MANAGER)
 public class UserController {
 
     private final UserService userService;
@@ -21,47 +34,35 @@ public class UserController {
     }
 
     @GetMapping
-    public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
-
-        return ResponseEntity.ok(userService.getAllUsers());
+    public List<UserResponse> list(@RequestParam(required = false) String search) {
+        return userService.list(search);
     }
 
     @GetMapping("/{userId}")
-    public ResponseEntity<UserResponseDTO> getUserById(
-            @PathVariable Long userId) {
-
-        UserResponseDTO user = userService.getUserById(userId);
-
-        if (user == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(user);
+    public UserResponse get(@PathVariable Long userId) {
+        return userService.get(userId);
     }
 
     @PostMapping
-    public ResponseEntity<UserResponseDTO> createUser(
-            @Valid @RequestBody UserRequestDTO dto) {
-
-        return ResponseEntity.ok(
-                userService.createUser(dto));
+    @ResponseStatus(HttpStatus.CREATED)
+    public UserResponse create(@Valid @RequestBody UserCreateRequest request) {
+        return userService.create(request);
     }
 
     @PutMapping("/{userId}")
-    public ResponseEntity<UserResponseDTO> updateUser(
-            @PathVariable Long userId,
-            @Valid @RequestBody UserRequestDTO dto) {
+    public UserResponse update(@PathVariable Long userId, @Valid @RequestBody UserUpdateRequest request) {
+        return userService.update(userId, request);
+    }
 
-        return ResponseEntity.ok(
-                userService.updateUser(userId, dto));
+    @PostMapping("/{userId}/reset-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resetPassword(@PathVariable Long userId, @Valid @RequestBody PasswordResetRequest request) {
+        userService.resetPassword(userId, request);
     }
 
     @DeleteMapping("/{userId}")
-    public ResponseEntity<Void> deleteUser(
-            @PathVariable Long userId) {
-
-        userService.deleteUser(userId);
-
-        return ResponseEntity.noContent().build();
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long userId) {
+        userService.delete(userId);
     }
 }

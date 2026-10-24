@@ -1,75 +1,111 @@
 package com.example.hr_service.security;
 
+import com.example.hr_service.config.AppProperties;
+import com.example.hr_service.entity.User;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.Date;
-import java.util.function.Function;
 
+/**
+ * Issues and verifies the HMAC-SHA signed access tokens.
+ *
+ * Every token carries the user's {@code tokenVersion}; bumping the version
+ * on the account (password change, role change, disable) immediately
+ * invalidates every token issued before.
+ */
 @Service
 public class JwtService {
 
-    @Value("${jwt.secret}")
-    private String secret;
+    private static final Logger log = LoggerFactory.getLogger(JwtService.class);
+    private static final int MIN_SECRET_BYTES = 32;
+    static final String CLAIM_VERSION = "ver";
+    static final String CLAIM_ROLE = "role";
+    static final String CLAIM_USER_ID = "uid";
 
-    @Value("${jwt.expiration}")
-    private long expiration;
+    private final SecretKey signingKey;
+    private final long expirationMs;
+    private final Clock clock;
 
-    private SecretKey getSigningKey() {
+    public JwtService(AppProperties properties, Clock clock) {
+        this.signingKey = buildKey(properties.jwt().secret());
+        this.expirationMs = properties.jwt().expirationMs();
+        this.clock = clock;
 
-        return Keys.hmacShaKeyFor(
-                secret.getBytes(StandardCharsets.UTF_8));
+        if (expirationMs < 60_000) {
+            throw new IllegalStateException("app.jwt.expiration-ms must be at least 60000 (1 minute).");
+        }
     }
 
-    public String generateToken(UserDetails userDetails) {
+    private static SecretKey buildKey(String secret) {
+        if (secret == null || secret.isBlank()) {
+            log.warn("JWT_SECRET is not set - generated a random signing key. "
+                    + "Users will be signed out whenever the server restarts. "
+                    + "Set JWT_SECRET (32+ characters) in any shared or production environment.");
+            byte[] random = new byte[64];
+            new SecureRandom().nextBytes(random);
+            return Keys.hmacShaKeyFor(random);
+        }
 
-        return Jwts.builder()
-                .subject(userDetails.getUsername())
-                .issuedAt(new Date())
-                .expiration(
-                        new Date(System.currentTimeMillis() + expiration))
-                .signWith(getSigningKey())
+        byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException("JWT_SECRET must be at least " + MIN_SECRET_BYTES
+                    + " characters long (currently " + bytes.length + ").");
+        }
+        return Keys.hmacShaKeyFor(bytes);
+    }
+
+    public IssuedToken generateToken(User user) {
+        Instant issuedAt = clock.instant();
+        Instant expiresAt = issuedAt.plusMillis(expirationMs);
+
+        String token = Jwts.builder()
+                .subject(user.getUsername())
+                .claim(CLAIM_USER_ID, user.getUserId())
+                .claim(CLAIM_ROLE, user.getSystemRole().name())
+                .claim(CLAIM_VERSION, user.getTokenVersion())
+                .issuedAt(Date.from(issuedAt))
+                .expiration(Date.from(expiresAt))
+                .signWith(signingKey)
                 .compact();
+
+        return new IssuedToken(token, expiresAt);
     }
 
-    public String extractUsername(String token) {
-
-        return extractClaim(token, Claims::getSubject);
-    }
-
-    public boolean isTokenValid(
-            String token,
-            UserDetails userDetails) {
-
-        String username = extractUsername(token);
-
-        return username.equals(userDetails.getUsername())
-                && !isTokenExpired(token);
-    }
-
-    private boolean isTokenExpired(String token) {
-
-        return extractClaim(token, Claims::getExpiration)
-                .before(new Date());
-    }
-
-    private <T> T extractClaim(
-            String token,
-            Function<Claims, T> resolver) {
-
+    /**
+     * Parses and verifies a token.
+     *
+     * @throws JwtException when the signature is invalid or the token expired
+     */
+    public TokenClaims parse(String token) {
         Claims claims = Jwts.parser()
-                .verifyWith(getSigningKey())
+                .verifyWith(signingKey)
+                .clock(() -> Date.from(clock.instant()))
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
 
-        return resolver.apply(claims);
+        Number version = claims.get(CLAIM_VERSION, Number.class);
+        return new TokenClaims(claims.getSubject(), version == null ? -1 : version.intValue());
+    }
+
+    public long getExpirationMs() {
+        return expirationMs;
+    }
+
+    public record IssuedToken(String token, Instant expiresAt) {
+    }
+
+    public record TokenClaims(String username, int tokenVersion) {
     }
 }

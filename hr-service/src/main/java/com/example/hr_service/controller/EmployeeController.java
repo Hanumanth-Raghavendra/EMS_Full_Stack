@@ -1,13 +1,25 @@
 package com.example.hr_service.controller;
 
-import com.example.hr_service.dto.EmployeeRequestDTO;
-import com.example.hr_service.dto.EmployeeResponseDTO;
-import com.example.hr_service.entity.Employee;
-import com.example.hr_service.mapper.EmployeeMapper;
+import com.example.hr_service.dto.EmployeeContactRequest;
+import com.example.hr_service.dto.EmployeeOption;
+import com.example.hr_service.dto.EmployeeRequest;
+import com.example.hr_service.dto.EmployeeResponse;
+import com.example.hr_service.dto.PageResponse;
+import com.example.hr_service.entity.EmployeeStatus;
 import com.example.hr_service.service.EmployeeService;
 import jakarta.validation.Valid;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
@@ -16,68 +28,65 @@ import java.util.List;
 public class EmployeeController {
 
     private final EmployeeService employeeService;
-    private final EmployeeMapper employeeMapper;
 
-    public EmployeeController(
-            EmployeeService employeeService,
-            EmployeeMapper employeeMapper) {
+    public EmployeeController(EmployeeService employeeService) {
         this.employeeService = employeeService;
-        this.employeeMapper = employeeMapper;
     }
 
+    /** Managers search everyone; employees receive only their own record. */
     @GetMapping
-    public List<EmployeeResponseDTO> getEmployees(
-            @RequestParam(required = false) String search) {
+    @PreAuthorize(Access.AUTHENTICATED)
+    public PageResponse<EmployeeResponse> search(@RequestParam(required = false) String search,
+                                                 @RequestParam(required = false) Long departmentId,
+                                                 @RequestParam(required = false) EmployeeStatus status,
+                                                 @RequestParam(required = false) Integer page,
+                                                 @RequestParam(required = false) Integer size,
+                                                 @RequestParam(required = false) String sort) {
+        return employeeService.search(search, departmentId, status, page, size, sort);
+    }
 
-        return employeeService.searchEmployees(search)
-                .stream()
-                .map(employeeMapper::toResponseDTO)
-                .toList();
+    @GetMapping("/options")
+    @PreAuthorize(Access.MANAGER)
+    public List<EmployeeOption> options(@RequestParam(defaultValue = "true") boolean activeOnly,
+                                        @RequestParam(defaultValue = "false") boolean withoutAccount) {
+        return employeeService.options(activeOnly, withoutAccount);
+    }
+
+    @GetMapping("/me")
+    @PreAuthorize(Access.AUTHENTICATED)
+    public EmployeeResponse me() {
+        return employeeService.me();
+    }
+
+    @PutMapping("/me/contact")
+    @PreAuthorize(Access.AUTHENTICATED)
+    public EmployeeResponse updateMyContact(@Valid @RequestBody EmployeeContactRequest request) {
+        return employeeService.updateMyContact(request);
     }
 
     @GetMapping("/{employeeId}")
-    public ResponseEntity<EmployeeResponseDTO> getEmployeeById(
-            @PathVariable Long employeeId) {
-
-        Employee employee = employeeService.getEmployeeById(employeeId);
-
-        return ResponseEntity.ok(
-                employeeMapper.toResponseDTO(employee));
+    @PreAuthorize(Access.AUTHENTICATED)
+    public EmployeeResponse get(@PathVariable Long employeeId) {
+        return employeeService.get(employeeId);
     }
 
     @PostMapping
-    public ResponseEntity<EmployeeResponseDTO> createEmployee(
-            @Valid @RequestBody EmployeeRequestDTO dto) {
-
-        Employee employee = employeeMapper.toEntity(dto);
-
-        Employee created = employeeService.createEmployee(employee);
-
-        return ResponseEntity.ok(
-                employeeMapper.toResponseDTO(created));
+    @PreAuthorize(Access.MANAGER)
+    @ResponseStatus(HttpStatus.CREATED)
+    public EmployeeResponse create(@Valid @RequestBody EmployeeRequest request) {
+        return employeeService.create(request);
     }
 
     @PutMapping("/{employeeId}")
-    public ResponseEntity<EmployeeResponseDTO> updateEmployee(
-            @PathVariable Long employeeId,
-            @Valid @RequestBody EmployeeRequestDTO dto) {
-
-        Employee employee = employeeMapper.toEntity(dto);
-
-        Employee updated = employeeService.updateEmployee(
-                employeeId,
-                employee);
-
-        return ResponseEntity.ok(
-                employeeMapper.toResponseDTO(updated));
+    @PreAuthorize(Access.MANAGER)
+    public EmployeeResponse update(@PathVariable Long employeeId, @Valid @RequestBody EmployeeRequest request) {
+        return employeeService.update(employeeId, request);
     }
 
     @DeleteMapping("/{employeeId}")
-    public ResponseEntity<Void> deleteEmployee(
-            @PathVariable Long employeeId) {
-
-        employeeService.deleteEmployee(employeeId);
-
-        return ResponseEntity.noContent().build();
+    @PreAuthorize(Access.MANAGER)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long employeeId) {
+        employeeService.delete(employeeId);
     }
 }

@@ -1,6 +1,12 @@
 package com.example.hr_service.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.EmbeddedId;
+import jakarta.persistence.Entity;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.MapsId;
+import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
 @Entity
@@ -23,7 +29,7 @@ public class EmployeeProject {
     @Column(name = "assigned_at")
     private LocalDateTime assignedAt;
 
-    @Column(name = "role_in_project")
+    @Column(name = "role_in_project", length = 100)
     private String roleInProject;
 
     public EmployeeProject() {
