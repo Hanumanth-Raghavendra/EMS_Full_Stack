@@ -43,7 +43,7 @@ class AuthAndSetupApiTest extends IntegrationTest {
 
     @Test
     void setupValidatesInput() throws Exception {
-        postAs(null, Json.of("username", "ad", "password", "short"), "/api/setup/first-admin")
+        postAs(null, Json.of("username", "a", "password", "short"), "/api/setup/first-admin")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors.username").exists())
                 .andExpect(jsonPath("$.fieldErrors.password").exists());
