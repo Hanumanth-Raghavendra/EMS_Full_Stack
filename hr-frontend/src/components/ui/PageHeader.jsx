@@ -1,25 +1,13 @@
-function PageHeader({
-    title,
-    description,
-    action,
-}) {
+import Typography from '@mui/material/Typography'
+
+export default function PageHeader({ title, description, actions }) {
     return (
-        <div className="page-header">
+        <header className="page-header">
             <div>
-                <h1>{title}</h1>
-
-                {description && (
-                    <p>{description}</p>
-                )}
+                <Typography variant="h1">{title}</Typography>
+                {description ? <p>{description}</p> : null}
             </div>
-
-            {action && (
-                <div>
-                    {action}
-                </div>
-            )}
-        </div>
+            {actions ? <div className="page-actions">{actions}</div> : null}
+        </header>
     )
 }
-
-export default PageHeader
