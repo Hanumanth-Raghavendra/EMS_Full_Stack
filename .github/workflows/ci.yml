@@ -1,0 +1,192 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'feature/**']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (build + tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hr-service
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Build and test (embedded PostgreSQL)
+        run: ./mvnw -B -ntp verify
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-reports
+          path: hr-service/target/surefire-reports/
+          if-no-files-found: ignore
+
+      - name: Upload API jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-jar
+          path: hr-service/target/hr-service.jar
+
+  frontend:
+    name: Frontend (lint + tests + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hr-frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: hr-frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test:run
+      - run: npm run build
+
+  e2e:
+    name: End-to-end (real API + browser)
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ems
+          POSTGRES_PASSWORD: ems
+          POSTGRES_DB: hr_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ems -d hr_e2e"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      API_URL: http://localhost:8080
+      BASE_URL: http://localhost:4173
+      DB_USERNAME: ems
+      DB_PASSWORD: ems
+      JWT_SECRET: e2e-secret-key-0123456789-abcdefghijklmnopqrstuvwxyz
+      ALLOWED_ORIGINS: http://localhost:4173
+      APP_TIMEZONE: Asia/Kolkata
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            hr-frontend/package-lock.json
+            e2e/package-lock.json
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: api-jar
+          path: dist-api
+
+      - name: Build and serve the web app
+        working-directory: hr-frontend
+        env:
+          VITE_API_URL: http://localhost:8080
+        run: |
+          npm ci
+          npm run build
+          nohup npx vite preview --port 4173 --strictPort > ../preview.log 2>&1 &
+
+      - name: Install Playwright
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Start API on an empty database
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/hr_e2e
+          DEMO_DATA: 'false'
+        run: |
+          nohup java -jar dist-api/hr-service.jar > api-journey.log 2>&1 &
+          echo $! > api.pid
+          for i in $(seq 1 60); do curl -sf "$API_URL/actuator/health" && break; sleep 2; done
+          curl -sf "$API_URL/actuator/health"
+
+      - name: Run the user journey
+        working-directory: e2e
+        run: npx playwright test tests/journey.spec.js
+
+      - name: Restart API with demo data for screenshots
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/hr_demo
+          DEMO_DATA: 'true'
+        run: |
+          kill "$(cat api.pid)" || true
+          sleep 3
+          PGPASSWORD=ems psql -h localhost -U ems -d hr_e2e -c "CREATE DATABASE hr_demo"
+          nohup java -jar dist-api/hr-service.jar > api-demo.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf "$API_URL/actuator/health" && break; sleep 2; done
+          curl -sf "$API_URL/actuator/health"
+
+      - name: Capture screenshots
+        working-directory: e2e
+        env:
+          CAPTURE_SCREENSHOTS: '1'
+        run: |
+          mkdir -p screenshots
+          npx playwright test tests/screenshots.spec.js
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: e2e/screenshots/
+          if-no-files-found: ignore
+
+      - name: Upload Playwright report and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+            api-journey.log
+            api-demo.log
+            preview.log
+          if-no-files-found: ignore
+
+  docker:
+    name: Docker images build
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API image
+        run: docker build -t ems-api ./hr-service
+      - name: Build web image
+        run: docker build --build-arg VITE_API_URL=http://localhost:8080 -t ems-web ./hr-frontend
