@@ -52,13 +52,13 @@ export default function TimeCard({ name, today, monthRecords, onChange }) {
                     <div className="punch">
                         <span className="label">Checked in</span>
                         <span className={`time ${record?.checkIn ? '' : 'is-empty'}`}>
-                            {record?.checkIn ? formatTime(record.checkIn) : '--:--'}
+                            {record?.checkIn ? formatTime(record.checkIn) : 'Not yet'}
                         </span>
                     </div>
                     <div className="punch">
                         <span className="label">Checked out</span>
                         <span className={`time ${record?.checkOut ? '' : 'is-empty'}`}>
-                            {record?.checkOut ? formatTime(record.checkOut) : '--:--'}
+                            {record?.checkOut ? formatTime(record.checkOut) : 'Not yet'}
                         </span>
                     </div>
                 </div>

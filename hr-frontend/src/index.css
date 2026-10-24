@@ -20,8 +20,8 @@
     --leave: #4f55c9;
     --unmarked: #c9d1cd;
 
-    --font-display: 'Bricolage Grotesque', 'Instrument Sans', system-ui, sans-serif;
-    --font-body: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+    --font-display: 'Bricolage Grotesque Variable', 'Instrument Sans Variable', system-ui, sans-serif;
+    --font-body: 'Instrument Sans Variable', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
 
     --radius-sheet: 12px;
     --radius-control: 8px;
@@ -566,7 +566,8 @@ a.ledger-cell:hover {
 }
 
 .punch .time.is-empty {
-    color: #6f9990;
+    color: #8fb0a8;
+    font-weight: 500;
 }
 
 .timecard-actions {
