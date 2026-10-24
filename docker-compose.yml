@@ -1,0 +1,53 @@
+# One-command local stack: PostgreSQL + API + web app.
+#
+#   docker compose up --build
+#
+# Web app:  http://localhost:3000
+# API:      http://localhost:8080  (Swagger UI: /swagger-ui.html)
+#
+# Demo data is seeded on the first start; sign in as admin / hr / employee
+# with password Demo@12345. Set DEMO_DATA=false to start empty instead.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: hr_db
+      POSTGRES_USER: ems
+      POSTGRES_PASSWORD: ems
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ems -d hr_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./hr-service
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/hr_db
+      DB_USERNAME: ems
+      DB_PASSWORD: ems
+      JWT_SECRET: ${JWT_SECRET:-local-docker-secret-change-me-0123456789abcdef}
+      ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173
+      DEMO_DATA: ${DEMO_DATA:-true}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Kolkata}
+    ports:
+      - "8080:8080"
+
+  web:
+    build:
+      context: ./hr-frontend
+      args:
+        VITE_API_URL: http://localhost:8080
+    depends_on:
+      - api
+    ports:
+      - "3000:80"
+
+volumes:
+  pgdata:

@@ -1,0 +1,20 @@
+import { createContext, useContext } from 'react'
+
+export const ToastContext = createContext(null)
+export const ConfirmContext = createContext(null)
+
+export function useToast() {
+    const context = useContext(ToastContext)
+    if (!context) {
+        throw new Error('useToast must be used inside ToastProvider')
+    }
+    return context
+}
+
+export function useConfirm() {
+    const context = useContext(ConfirmContext)
+    if (!context) {
+        throw new Error('useConfirm must be used inside ConfirmProvider')
+    }
+    return context
+}
