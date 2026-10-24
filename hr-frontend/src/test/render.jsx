@@ -42,7 +42,7 @@ export function LocationProbe() {
  * Renders a page inside every provider the app uses, at `route`, optionally
  * signed in as one of USERS.
  */
-export function renderPage(element, { route = '/', path = '*', user = null, extraRoutes = null } = {}) {
+export function renderPage(element, { route = '/', path = '*', user = null, extraRoutes = null, auth = {} } = {}) {
     const store = createStore({
         auth: {
             token: user ? 'test-token' : null,
@@ -51,6 +51,8 @@ export function renderPage(element, { route = '/', path = '*', user = null, extr
             status: 'idle',
             error: null,
             signedOutReason: null,
+            previousUsername: null,
+            ...auth,
         },
     })
     const result = render(

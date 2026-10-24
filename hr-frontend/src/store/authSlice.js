@@ -19,6 +19,9 @@ export function buildInitialState(session = loadSession()) {
         status: 'idle',
         error: null,
         signedOutReason: null,
+        // Who was signed in before the last sign-out; decides whether the next
+        // sign-in may return to the page that person was on.
+        previousUsername: null,
     }
 }
 
@@ -40,6 +43,7 @@ const authSlice = createSlice({
             }
         },
         signedOut(state, action) {
+            state.previousUsername = state.user?.username ?? state.previousUsername ?? null
             state.token = null
             state.expiresAt = null
             state.user = null

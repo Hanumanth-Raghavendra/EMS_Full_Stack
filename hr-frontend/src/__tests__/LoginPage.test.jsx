@@ -28,6 +28,51 @@ describe('LoginPage', () => {
         expect(store.getState().auth.user.username).toBe('ravi')
     })
 
+    it('returns to the page that needed a sign-in for the same person', async () => {
+        authApi.login.mockResolvedValue({ token: 't', expiresAt: '2099-01-01T00:00:00Z', user: USERS.EMPLOYEE })
+        renderPage(<LoginPage />, {
+            route: { pathname: '/login', state: { from: '/leave?tab=mine' } },
+            path: '/login',
+            auth: { previousUsername: 'ravi' },
+        })
+
+        await userEvent.type(screen.getByLabelText(/username/i), 'ravi')
+        await userEvent.type(screen.getByLabelText(/^password/i), 'Passw0rd!')
+        await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+
+        await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/leave?tab=mine'))
+    })
+
+    it("does not send the next person to the previous user's page after a reload", async () => {
+        // Reloading the sign-in page keeps the history state but loses the store.
+        authApi.login.mockResolvedValue({ token: 't', expiresAt: '2099-01-01T00:00:00Z', user: USERS.EMPLOYEE })
+        renderPage(<LoginPage />, {
+            route: { pathname: '/login', state: { from: '/audit-logs', by: 'admin' } },
+            path: '/login',
+        })
+
+        await userEvent.type(screen.getByLabelText(/username/i), 'ravi')
+        await userEvent.type(screen.getByLabelText(/^password/i), 'Passw0rd!')
+        await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+
+        await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/dashboard'))
+    })
+
+    it("does not send the next person to the previous user's page", async () => {
+        authApi.login.mockResolvedValue({ token: 't', expiresAt: '2099-01-01T00:00:00Z', user: USERS.EMPLOYEE })
+        renderPage(<LoginPage />, {
+            route: { pathname: '/login', state: { from: '/audit-logs' } },
+            path: '/login',
+            auth: { previousUsername: 'admin' },
+        })
+
+        await userEvent.type(screen.getByLabelText(/username/i), 'ravi')
+        await userEvent.type(screen.getByLabelText(/^password/i), 'Passw0rd!')
+        await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+
+        await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/dashboard'))
+    })
+
     it('shows the server message when sign-in fails', async () => {
         authApi.login.mockRejectedValue({ response: { status: 401, data: { message: 'Invalid username or password.' } } })
         renderPage(<LoginPage />, { route: '/login', path: '/login' })

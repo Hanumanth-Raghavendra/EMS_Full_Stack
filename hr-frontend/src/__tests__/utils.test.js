@@ -7,6 +7,7 @@ import {
     formatMinutes,
     timePart,
 } from '../utils/format'
+import { returnPath } from '../utils/returnPath'
 import { MESSAGES, hasErrors, validateEmployee, validatePasswordPair } from '../utils/validation'
 
 const validEmployee = {
@@ -73,6 +74,24 @@ describe('format helpers', () => {
         expect(timePart('2026-06-10T09:05:00')).toBe('09:05')
         expect(timePart(null)).toBe('')
         expect(addDays('2026-02-27', 2)).toBe('2026-03-01')
+    })
+})
+
+describe('returnPath', () => {
+    it('returns to the requested page for a fresh sign-in or the same person', () => {
+        expect(returnPath('/leave?tab=mine', null, 'ravi')).toBe('/leave?tab=mine')
+        expect(returnPath('/leave', 'Ravi', 'ravi')).toBe('/leave')
+    })
+
+    it('starts a different person on the dashboard', () => {
+        expect(returnPath('/audit-logs', 'admin', 'ravi')).toBe('/dashboard')
+    })
+
+    it('ignores missing, external or login targets', () => {
+        expect(returnPath(undefined, null, 'ravi')).toBe('/dashboard')
+        expect(returnPath('https://evil.example', null, 'ravi')).toBe('/dashboard')
+        expect(returnPath('//evil.example', null, 'ravi')).toBe('/dashboard')
+        expect(returnPath('/login', null, 'ravi')).toBe('/dashboard')
     })
 })
 
