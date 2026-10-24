@@ -14,6 +14,7 @@ import com.example.hr_service.exception.ConflictException;
 import com.example.hr_service.exception.ForbiddenOperationException;
 import com.example.hr_service.repository.EmployeeRepository;
 import com.example.hr_service.repository.UserRepository;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +47,10 @@ public class SetupService {
     private final AuditLogRecorder audit;
     private final AppProperties properties;
     private final Clock clock;
+    private final JdbcTemplate jdbcTemplate;
+
+    /** Arbitrary constant identifying the "first admin" critical section. */
+    private static final long SETUP_LOCK_KEY = 0x454D53_5345545550L;
 
     public SetupService(UserRepository userRepository,
                         EmployeeRepository employeeRepository,
@@ -53,7 +58,8 @@ public class SetupService {
                         PasswordEncoder passwordEncoder,
                         AuditLogRecorder audit,
                         AppProperties properties,
-                        Clock clock) {
+                        Clock clock,
+                        JdbcTemplate jdbcTemplate) {
         this.userRepository = userRepository;
         this.employeeRepository = employeeRepository;
         this.roleService = roleService;
@@ -61,6 +67,7 @@ public class SetupService {
         this.audit = audit;
         this.properties = properties;
         this.clock = clock;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Transactional(readOnly = true)
@@ -80,13 +87,18 @@ public class SetupService {
                 demoAccounts);
     }
 
-    /** Synchronized: two simultaneous requests can never create two "first" admins. */
     @Transactional
-    public synchronized InitialAdminResponse createFirstAdmin(InitialAdminRequest request) {
+    public InitialAdminResponse createFirstAdmin(InitialAdminRequest request) {
+        verifyToken(request.setupToken());
+
+        // A transaction-scoped database lock (released on commit/rollback) so two
+        // simultaneous requests can never both create a "first" administrator,
+        // even across several API instances.
+        jdbcTemplate.execute("SELECT pg_advisory_xact_lock(" + SETUP_LOCK_KEY + ")");
+
         if (!isSetupRequired()) {
             throw new ConflictException("Setup has already been completed. Please sign in.");
         }
-        verifyToken(request.setupToken());
 
         String username = request.username().trim();
         if (userRepository.existsByUsernameIgnoreCase(username)) {

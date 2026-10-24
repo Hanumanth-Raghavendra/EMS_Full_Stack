@@ -21,9 +21,9 @@ export const tokens = {
     leave: '#4F55C9',
 }
 
-export const displayFont = '"Bricolage Grotesque", "Instrument Sans", system-ui, sans-serif'
+export const displayFont = '"Bricolage Grotesque Variable", "Instrument Sans Variable", system-ui, sans-serif'
 export const bodyFont =
-    '"Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    '"Instrument Sans Variable", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
 
 const theme = createTheme({
     palette: {
