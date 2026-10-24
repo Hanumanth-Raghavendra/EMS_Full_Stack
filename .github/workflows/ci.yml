@@ -36,7 +36,7 @@ jobs:
         if: failure()
         run: >
           python3 ../.github/scripts/annotate_failures.py Backend
-          build.log 'target/surefire-reports/*.txt'
+          'target/surefire-reports/*.txt' build.log
 
       - name: Upload test reports
         if: always()
