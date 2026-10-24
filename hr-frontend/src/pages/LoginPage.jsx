@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Link as RouterLink, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link as RouterLink, Navigate, useLocation } from 'react-router-dom'
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
 import Stack from '@mui/material/Stack'
@@ -12,12 +12,12 @@ import DecorativeRegister from '../components/ui/DecorativeRegister'
 import PasswordField from '../components/ui/PasswordField'
 import RoleTag from '../components/ui/RoleTag'
 import { clearAuthMessages, login, selectAuth, selectIsAuthenticated } from '../store/authSlice'
+import { returnPath } from '../utils/returnPath'
 
 export default function LoginPage() {
     const dispatch = useDispatch()
-    const navigate = useNavigate()
     const location = useLocation()
-    const { status, error, signedOutReason } = useSelector(selectAuth)
+    const { status, error, signedOutReason, previousUsername, user } = useSelector(selectAuth)
     const authenticated = useSelector(selectIsAuthenticated)
 
     const [username, setUsername] = useState(location.state?.username || '')
@@ -55,8 +55,10 @@ export default function LoginPage() {
         }
     }, [loading])
 
+    // Signing in re-renders this page as authenticated, which redirects here.
     if (authenticated) {
-        return <Navigate to={location.state?.from || '/dashboard'} replace />
+        const owner = location.state?.by ?? previousUsername
+        return <Navigate to={returnPath(location.state?.from, owner, user?.username)} replace />
     }
 
     const submit = async (event) => {
@@ -64,10 +66,7 @@ export default function LoginPage() {
         if (!username.trim() || !password) {
             return
         }
-        const result = await dispatch(login({ username: username.trim(), password }))
-        if (login.fulfilled.match(result)) {
-            navigate(location.state?.from || '/dashboard', { replace: true })
-        }
+        await dispatch(login({ username: username.trim(), password }))
     }
 
     const fillDemoAccount = (account) => {

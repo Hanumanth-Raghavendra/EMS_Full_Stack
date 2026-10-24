@@ -33,6 +33,7 @@ describe('auth slice', () => {
         expect(state.token).toBeNull()
         expect(state.user).toBeNull()
         expect(state.signedOutReason).toBe('Your session expired.')
+        expect(state.previousUsername).toBe('ravi')
     })
 })
 
