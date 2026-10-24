@@ -1,0 +1,47 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Creates the API (Docker) and a PostgreSQL database. The frontend is meant
+# for Vercel (see docs/DEPLOYMENT.md), but a static site block is included
+# below as an alternative.
+
+services:
+  - type: web
+    name: ems-api
+    runtime: docker
+    rootDir: hr-service
+    plan: free
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ems-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        sync: false # e.g. https://your-app.vercel.app,https://*.vercel.app
+      - key: SETUP_TOKEN
+        generateValue: true # needed once to create the first admin
+      - key: DEMO_DATA
+        value: "false"
+      - key: APP_TIMEZONE
+        value: Asia/Kolkata
+
+  # Optional: host the frontend on Render instead of Vercel.
+  - type: web
+    name: ems-web
+    runtime: static
+    rootDir: hr-frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false # e.g. https://ems-api.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+databases:
+  - name: ems-db
+    plan: free
+    databaseName: hr_db
