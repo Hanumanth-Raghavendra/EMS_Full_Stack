@@ -1,6 +1,7 @@
 package com.example.hr_service.service;
 
 import com.example.hr_service.config.AppProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.DayOfWeek;
@@ -14,10 +15,12 @@ public class LeaveCalendar {
 
     private final boolean excludeWeekends;
 
+    @Autowired
     public LeaveCalendar(AppProperties properties) {
         this.excludeWeekends = properties.leave().excludeWeekends();
     }
 
+    /** For unit tests and callers outside the Spring context. */
     public LeaveCalendar(boolean excludeWeekends) {
         this.excludeWeekends = excludeWeekends;
     }
