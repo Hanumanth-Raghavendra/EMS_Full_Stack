@@ -36,3 +36,5 @@ Thumbs.db
 EMS_Backups/
 PatchFiles/
 hr-service-current-source.zip
+.neon
+node_modules/
