@@ -5,7 +5,6 @@ import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -102,11 +101,6 @@ public class GlobalExceptionHandler {
                                                            HttpServletRequest request) {
         String message = "Required parameter '" + ex.getParameterName() + "' is missing.";
         return build(HttpStatus.BAD_REQUEST, message, request, Map.of(ex.getParameterName(), message));
-    }
-
-    @ExceptionHandler(PropertyReferenceException.class)
-    public ResponseEntity<ApiError> handleBadSort(PropertyReferenceException ex, HttpServletRequest request) {
-        return build(HttpStatus.BAD_REQUEST, "Unknown sort field '" + ex.getPropertyName() + "'.", request, Map.of());
     }
 
     // ------------------------------------------------------------------ 401 / 403
