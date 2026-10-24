@@ -32,14 +32,16 @@ class AttendanceApiTest extends IntegrationTest {
 
         postAs(org.employeeToken(), null, "/api/attendance/check-in").andExpect(status().isConflict());
 
+        // A working day outlasts the test session, so sign in again like a real user would.
         clock.advance(Duration.ofHours(9));
-        postAs(org.employeeToken(), null, "/api/attendance/check-out")
+        String token = login("ravi", PASSWORD);
+        postAs(token, null, "/api/attendance/check-out")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.record.status").value("PRESENT"))
                 .andExpect(jsonPath("$.record.workedMinutes").value(540))
                 .andExpect(jsonPath("$.canCheckOut").value(false));
 
-        postAs(org.employeeToken(), null, "/api/attendance/check-out").andExpect(status().isConflict());
+        postAs(token, null, "/api/attendance/check-out").andExpect(status().isConflict());
     }
 
     @Test
@@ -47,7 +49,8 @@ class AttendanceApiTest extends IntegrationTest {
         Org org = org();
         postAs(org.employeeToken(), null, "/api/attendance/check-in").andExpect(status().isOk());
         clock.advance(Duration.ofHours(2));
-        postAs(org.employeeToken(), null, "/api/attendance/check-out")
+        postAs(login("ravi", PASSWORD), null, "/api/attendance/check-out")
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.record.status").value("HALF_DAY"));
     }
 

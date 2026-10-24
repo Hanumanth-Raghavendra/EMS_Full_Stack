@@ -195,7 +195,9 @@ public class EmployeeService {
         employeeRepository.clearLeaveApprovals(employeeId);
         employeeRepository.deleteLeaveRequests(employeeId);
         employeeRepository.deleteUsersForEmployee(employeeId);
-        employeeRepository.delete(employee);
+        // The persistence context was cleared above, so delete by id rather
+        // than through the (now detached) entity.
+        employeeRepository.deleteById(employeeId);
 
         audit.record(AuditAction.DELETE, ENTITY, employeeId, description, null);
     }

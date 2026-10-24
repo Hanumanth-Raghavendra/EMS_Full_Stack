@@ -109,7 +109,12 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     @Query(value = "DELETE FROM leave_requests WHERE employee_id = :employeeId", nativeQuery = true)
     int deleteLeaveRequests(@Param("employeeId") Long employeeId);
 
-    @Modifying
+    /**
+     * Flushes before and clears the persistence context after: the account
+     * may already be loaded as an entity, and a stale managed User pointing
+     * at the employee being removed would make the next flush fail.
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query(value = "DELETE FROM users WHERE employee_id = :employeeId", nativeQuery = true)
     int deleteUsersForEmployee(@Param("employeeId") Long employeeId);
 }
