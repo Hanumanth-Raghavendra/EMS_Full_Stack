@@ -1,85 +1,79 @@
-export const validateEmployee = (form) => {
+/** Client-side checks that mirror the server's rules, so users get instant feedback. */
+
+export const PATTERNS = {
+    employeeCode: /^[A-Za-z0-9_-]{1,30}$/,
+    personName: /^[A-Za-z]+(?:[ '.-][A-Za-z]+)*$/,
+    phone: /^[6-9][0-9]{9}$/,
+    email: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/,
+    username: /^[A-Za-z0-9._-]{3,50}$/,
+    password: /^(?=.*[A-Za-z])(?=.*\d).{8,64}$/,
+}
+
+export const MESSAGES = {
+    employeeCode: 'Use letters, numbers, hyphens or underscores (max 30).',
+    personName: 'Use letters only; spaces, apostrophes, dots and hyphens between words are fine.',
+    phone: 'Enter a 10-digit mobile number starting with 6-9.',
+    email: 'Enter a valid email address.',
+    username: '3-50 characters: letters, numbers, dots, hyphens or underscores.',
+    password: '8-64 characters with at least one letter and one number.',
+}
+
+const isBlank = (value) => value === null || value === undefined || String(value).trim() === ''
+
+/**
+ * Runs a list of rules and returns { field: message } for the first failing
+ * rule of each field.
+ *
+ * rules: { field: [[predicate, message], ...] } where predicate(value, values) => true when valid.
+ */
+export function validate(values, rules) {
     const errors = {}
-
-    // Employee Code
-    if (!form.employeeCode.trim()) {
-        errors.employeeCode = 'Employee code is required.'
-    } else if (!/^[A-Za-z0-9_-]+$/.test(form.employeeCode.trim())) {
-        errors.employeeCode =
-            'Employee code can contain only letters, numbers, _ and -.'
-    }
-
-    // First Name
-    if (!form.firstName.trim()) {
-        errors.firstName = 'First name is required.'
-    } else if (!/^[A-Za-z]+(?:[ '-][A-Za-z]+)*$/.test(form.firstName.trim())) {
-        errors.firstName =
-            'First name can contain only letters, spaces, hyphens and apostrophes.'
-    }
-
-    // Last Name
-    if (!form.lastName.trim()) {
-        errors.lastName = 'Last name is required.'
-    } else if (!/^[A-Za-z]+(?:[ '-][A-Za-z]+)*$/.test(form.lastName.trim())) {
-        errors.lastName =
-            'Last name can contain only letters, spaces, hyphens and apostrophes.'
-    }
-
-    // Email
-    if (!form.email.trim()) {
-        errors.email = 'Email is required.'
-    } else if (
-        !/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(
-            form.email.trim()
-        )
-    ) {
-        errors.email = 'Enter a valid email address.'
-    }
-
-    // Phone
-    if (!form.phone.trim()) {
-        errors.phone = 'Phone number is required.'
-    } else if (!/^[6-9]\d{9}$/.test(form.phone.trim())) {
-        errors.phone =
-            'Phone number must be a valid 10-digit Indian mobile number.'
-    }
-
-    // Date of Joining
-    if (!form.dateOfJoining) {
-        errors.dateOfJoining = 'Date of joining is required.'
-    } else {
-        const selectedDate = new Date(form.dateOfJoining)
-        const today = new Date()
-
-        selectedDate.setHours(0, 0, 0, 0)
-        today.setHours(0, 0, 0, 0)
-
-        if (selectedDate > today) {
-            errors.dateOfJoining =
-                'Date of joining cannot be in the future.'
+    for (const [field, checks] of Object.entries(rules)) {
+        for (const [isValid, message] of checks) {
+            if (!isValid(values[field], values)) {
+                errors[field] = message
+                break
+            }
         }
     }
-
-    // Department
-    if (!form.departmentId) {
-        errors.departmentId = 'Department ID is required.'
-    } else if (!/^[1-9]\d*$/.test(String(form.departmentId))) {
-        errors.departmentId =
-            'Department ID must be a positive number.'
-    }
-
-    // Designation
-    if (!form.designationId) {
-        errors.designationId = 'Designation ID is required.'
-    } else if (!/^[1-9]\d*$/.test(String(form.designationId))) {
-        errors.designationId =
-            'Designation ID must be a positive number.'
-    }
-
-    // Status
-    if (!['ACTIVE', 'INACTIVE'].includes(form.status)) {
-        errors.status = 'Invalid employee status.'
-    }
-
     return errors
 }
+
+export const required = (message = 'This field is required.') => [(value) => !isBlank(value), message]
+export const matches = (pattern, message) => [(value) => isBlank(value) || pattern.test(String(value).trim()), message]
+export const maxLength = (max, message = `Use at most ${max} characters.`) => [
+    (value) => isBlank(value) || String(value).trim().length <= max,
+    message,
+]
+
+export function validateEmployee(values, today) {
+    return validate(values, {
+        employeeCode: [required('Employee code is required.'), matches(PATTERNS.employeeCode, MESSAGES.employeeCode)],
+        firstName: [required('First name is required.'), maxLength(50), matches(PATTERNS.personName, MESSAGES.personName)],
+        lastName: [required('Last name is required.'), maxLength(50), matches(PATTERNS.personName, MESSAGES.personName)],
+        email: [required('Email is required.'), maxLength(100), matches(PATTERNS.email, MESSAGES.email)],
+        phone: [required('Phone is required.'), matches(PATTERNS.phone, MESSAGES.phone)],
+        dateOfJoining: [
+            required('Date of joining is required.'),
+            [(value) => isBlank(value) || !today || value <= today, 'Date of joining cannot be in the future.'],
+        ],
+        departmentId: [required('Choose a department.')],
+        designationId: [required('Choose a designation.')],
+        status: [required('Choose a status.')],
+    })
+}
+
+export function validatePasswordPair(password, confirm) {
+    const errors = {}
+    if (isBlank(password)) {
+        errors.password = 'Password is required.'
+    } else if (!PATTERNS.password.test(password)) {
+        errors.password = MESSAGES.password
+    }
+    if (password !== confirm) {
+        errors.confirmPassword = 'Passwords do not match.'
+    }
+    return errors
+}
+
+export const hasErrors = (errors) => Object.keys(errors).length > 0
