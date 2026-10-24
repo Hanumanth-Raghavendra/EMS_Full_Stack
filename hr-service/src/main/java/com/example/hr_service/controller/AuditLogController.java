@@ -1,17 +1,22 @@
 package com.example.hr_service.controller;
 
-import com.example.hr_service.dto.AuditLogRequestDTO;
-import com.example.hr_service.dto.AuditLogResponseDTO;
+import com.example.hr_service.dto.AuditFiltersResponse;
+import com.example.hr_service.dto.AuditLogResponse;
+import com.example.hr_service.dto.PageResponse;
 import com.example.hr_service.service.AuditLogService;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import jakarta.validation.Valid;
+import java.time.LocalDate;
 
-import java.util.List;
-
+/** Read-only audit trail (administrators only). */
 @RestController
 @RequestMapping("/api/audit-logs")
+@PreAuthorize(Access.ADMIN)
 public class AuditLogController {
 
     private final AuditLogService auditLogService;
@@ -21,49 +26,20 @@ public class AuditLogController {
     }
 
     @GetMapping
-    public ResponseEntity<List<AuditLogResponseDTO>> getAllAuditLogs() {
-
-        return ResponseEntity.ok(auditLogService.getAllAuditLogs());
+    public PageResponse<AuditLogResponse> search(
+            @RequestParam(required = false) String action,
+            @RequestParam(required = false) String entityName,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String sort) {
+        return auditLogService.search(action, entityName, username, from, to, page, size, sort);
     }
 
-    @GetMapping("/{auditId}")
-    public ResponseEntity<AuditLogResponseDTO> getAuditLogById(
-            @PathVariable Long auditId) {
-
-        AuditLogResponseDTO auditLog =
-                auditLogService.getAuditLogById(auditId);
-
-        if (auditLog == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(auditLog);
-    }
-
-    @PostMapping
-    public ResponseEntity<AuditLogResponseDTO> createAuditLog(
-            @Valid @RequestBody AuditLogRequestDTO dto) {
-
-        return ResponseEntity.ok(
-                auditLogService.createAuditLog(dto));
-    }
-
-    @PutMapping("/{auditId}")
-    public ResponseEntity<AuditLogResponseDTO> updateAuditLog(
-            @PathVariable Long auditId,
-            @Valid @RequestBody AuditLogRequestDTO dto) {
-
-        return ResponseEntity.ok(
-                auditLogService.updateAuditLog(
-                        auditId, dto));
-    }
-
-    @DeleteMapping("/{auditId}")
-    public ResponseEntity<Void> deleteAuditLog(
-            @PathVariable Long auditId) {
-
-        auditLogService.deleteAuditLog(auditId);
-
-        return ResponseEntity.noContent().build();
+    @GetMapping("/filters")
+    public AuditFiltersResponse filters() {
+        return auditLogService.filters();
     }
 }

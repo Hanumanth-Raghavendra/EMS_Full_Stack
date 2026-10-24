@@ -1,94 +1,58 @@
 package com.example.hr_service.controller;
 
-import com.example.hr_service.entity.Department;
-import com.example.hr_service.repository.DepartmentRepository;
-
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import com.example.hr_service.dto.DepartmentRequest;
+import com.example.hr_service.dto.DepartmentResponse;
+import com.example.hr_service.service.DepartmentService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/departments")
+@PreAuthorize(Access.MANAGER)
 public class DepartmentController {
 
-    private final DepartmentRepository departmentRepository;
+    private final DepartmentService departmentService;
 
-    public DepartmentController(
-            DepartmentRepository departmentRepository) {
-        this.departmentRepository = departmentRepository;
+    public DepartmentController(DepartmentService departmentService) {
+        this.departmentService = departmentService;
     }
 
     @GetMapping
-    public ResponseEntity<List<Department>> getAllDepartments() {
-        return ResponseEntity.ok(
-                departmentRepository.findAll());
+    public List<DepartmentResponse> list() {
+        return departmentService.listDepartments();
     }
 
     @GetMapping("/{departmentId}")
-    public ResponseEntity<Department> getDepartmentById(
-            @PathVariable Long departmentId) {
-
-        return departmentRepository.findById(departmentId)
-                .map(ResponseEntity::ok)
-                .orElseGet(
-                        () -> ResponseEntity.notFound().build());
+    public DepartmentResponse get(@PathVariable Long departmentId) {
+        return departmentService.getDepartment(departmentId);
     }
 
     @PostMapping
-    public ResponseEntity<Department> createDepartment(
-            @RequestBody Department department) {
-
-        if (department.getDepartmentName() == null
-                || department.getDepartmentName().isBlank()) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        department.setDepartmentId(null);
-
-        Department savedDepartment = departmentRepository.save(department);
-
-        return ResponseEntity.ok(savedDepartment);
+    @ResponseStatus(HttpStatus.CREATED)
+    public DepartmentResponse create(@Valid @RequestBody DepartmentRequest request) {
+        return departmentService.createDepartment(request);
     }
 
     @PutMapping("/{departmentId}")
-    public ResponseEntity<Department> updateDepartment(
-            @PathVariable Long departmentId,
-            @RequestBody Department department) {
-
-        Department existingDepartment = departmentRepository.findById(departmentId)
-                .orElse(null);
-
-        if (existingDepartment == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        if (department.getDepartmentName() == null
-                || department.getDepartmentName().isBlank()) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        existingDepartment.setDepartmentName(
-                department.getDepartmentName());
-
-        existingDepartment.setDescription(
-                department.getDescription());
-
-        Department updatedDepartment = departmentRepository.save(existingDepartment);
-
-        return ResponseEntity.ok(updatedDepartment);
+    public DepartmentResponse update(@PathVariable Long departmentId, @Valid @RequestBody DepartmentRequest request) {
+        return departmentService.updateDepartment(departmentId, request);
     }
 
     @DeleteMapping("/{departmentId}")
-    public ResponseEntity<Void> deleteDepartment(
-            @PathVariable Long departmentId) {
-
-        if (!departmentRepository.existsById(departmentId)) {
-            return ResponseEntity.notFound().build();
-        }
-
-        departmentRepository.deleteById(departmentId);
-
-        return ResponseEntity.noContent().build();
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long departmentId) {
+        departmentService.deleteDepartment(departmentId);
     }
 }

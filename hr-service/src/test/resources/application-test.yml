@@ -1,0 +1,24 @@
+# Test profile: the datasource URL is supplied by IntegrationTest (embedded PostgreSQL).
+spring:
+  jpa:
+    hibernate:
+      # Fails the build if an entity and the Flyway schema ever drift apart.
+      ddl-auto: validate
+
+app:
+  timezone: Asia/Kolkata
+  jwt:
+    secret: integration-test-secret-key-0123456789-abcdefghijklmnop
+    expiration-ms: 3600000
+  cors:
+    allowed-origins: http://localhost:5173
+  security:
+    max-failed-logins: 3
+    lockout-minutes: 15
+  demo:
+    enabled: false
+
+logging:
+  level:
+    root: WARN
+    org.flywaydb: WARN
