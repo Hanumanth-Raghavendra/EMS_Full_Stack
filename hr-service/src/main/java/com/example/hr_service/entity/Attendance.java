@@ -1,6 +1,17 @@
 package com.example.hr_service.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -20,8 +31,9 @@ public class Attendance {
     @Column(name = "attendance_date", nullable = false)
     private LocalDate attendanceDate;
 
-    @Column(name = "status", nullable = false)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private AttendanceStatus status;
 
     @Column(name = "check_in")
     private LocalDateTime checkIn;
@@ -30,6 +42,14 @@ public class Attendance {
     private LocalDateTime checkOut;
 
     public Attendance() {
+    }
+
+    /** Minutes between check-in and check-out, or null when incomplete. */
+    public Long getWorkedMinutes() {
+        if (checkIn == null || checkOut == null) {
+            return null;
+        }
+        return Math.max(0, Duration.between(checkIn, checkOut).toMinutes());
     }
 
     public Long getAttendanceId() {
@@ -56,11 +76,11 @@ public class Attendance {
         this.attendanceDate = attendanceDate;
     }
 
-    public String getStatus() {
+    public AttendanceStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(AttendanceStatus status) {
         this.status = status;
     }
 

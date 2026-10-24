@@ -1,17 +1,18 @@
 package com.example.hr_service.controller;
 
+import com.example.hr_service.dto.RoleResponse;
+import com.example.hr_service.service.RoleService;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import java.util.List;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import jakarta.validation.Valid;
-
-import com.example.hr_service.dto.RoleRequestDTO;
-import com.example.hr_service.dto.RoleResponseDTO;
-import com.example.hr_service.service.RoleService;
-
+/** Read-only: roles are fixed system roles. */
 @RestController
 @RequestMapping("/api/roles")
+@PreAuthorize(Access.MANAGER)
 public class RoleController {
 
     private final RoleService roleService;
@@ -21,47 +22,7 @@ public class RoleController {
     }
 
     @GetMapping
-    public ResponseEntity<List<RoleResponseDTO>> getAllRoles() {
-
-        return ResponseEntity.ok(roleService.getAllRoles());
-    }
-
-    @GetMapping("/{roleId}")
-    public ResponseEntity<RoleResponseDTO> getRoleById(
-            @PathVariable Long roleId) {
-
-        RoleResponseDTO role = roleService.getRoleById(roleId);
-
-        if (role == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(role);
-    }
-
-    @PostMapping
-    public ResponseEntity<RoleResponseDTO> createRole(
-            @Valid @RequestBody RoleRequestDTO dto) {
-
-        return ResponseEntity.ok(
-                roleService.createRole(dto));
-    }
-
-    @PutMapping("/{roleId}")
-    public ResponseEntity<RoleResponseDTO> updateRole(
-            @PathVariable Long roleId,
-            @Valid @RequestBody RoleRequestDTO dto) {
-
-        return ResponseEntity.ok(
-                roleService.updateRole(roleId, dto));
-    }
-
-    @DeleteMapping("/{roleId}")
-    public ResponseEntity<Void> deleteRole(
-            @PathVariable Long roleId) {
-
-        roleService.deleteRole(roleId);
-
-        return ResponseEntity.noContent().build();
+    public List<RoleResponse> list() {
+        return roleService.list();
     }
 }

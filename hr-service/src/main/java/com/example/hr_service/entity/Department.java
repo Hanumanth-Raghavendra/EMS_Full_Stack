@@ -1,6 +1,11 @@
 package com.example.hr_service.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "departments")
@@ -11,10 +16,10 @@ public class Department {
     @Column(name = "department_id")
     private Long departmentId;
 
-    @Column(name = "department_name")
+    @Column(name = "department_name", nullable = false, length = 100)
     private String departmentName;
 
-    @Column(name = "description")
+    @Column(name = "description", length = 500)
     private String description;
 
     public Department() {

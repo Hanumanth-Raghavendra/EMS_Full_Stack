@@ -1,22 +1,38 @@
-# Backend
+# ---- Backend
 hr-service/target/
 hr-service/.mvn/timing.properties
+hr-service/.mvn/wrapper/maven-wrapper.jar
+# Local, possibly secret, overrides
 hr-service/src/main/resources/application.properties
+hr-service/src/main/resources/application-local.*
 
-# Frontend
+# ---- Frontend
 hr-frontend/node_modules/
 hr-frontend/dist/
+hr-frontend/coverage/
 hr-frontend/.env
 hr-frontend/.env.*
+!hr-frontend/.env.example
 
-# IDE
+# ---- End-to-end tests
+e2e/node_modules/
+e2e/test-results/
+e2e/playwright-report/
+
+# ---- Environment
+.env
+.env.*
+!.env.example
+
+# ---- IDE / OS
 .idea/
-.vscode/*.log
-
-# OS
+*.iml
+.vscode/*
+!.vscode/extensions.json
 .DS_Store
 Thumbs.db
-# Local backup / patch artifacts
+
+# ---- Local backup / patch artifacts
 EMS_Backups/
 PatchFiles/
 hr-service-current-source.zip

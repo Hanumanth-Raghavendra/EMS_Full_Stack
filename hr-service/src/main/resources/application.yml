@@ -1,0 +1,109 @@
+# =====================================================================
+# EMS API configuration
+#
+# Every value can be overridden with an environment variable, so the same
+# build runs locally, in Docker and on a hosting platform without edits.
+# See .env.example in the repository root for the full list.
+#
+# Local overrides that should never be committed can go in
+# src/main/resources/application.properties (git-ignored) or in
+# application-local.yml with SPRING_PROFILES_ACTIVE=local.
+# =====================================================================
+
+spring:
+  application:
+    name: hr-service
+
+  datasource:
+    # DATABASE_URL in postgres://user:pass@host/db form is also supported
+    # (see DatabaseUrlResolver), which is what Render/Neon/Railway provide.
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/hr_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:5}
+      connection-timeout: 20000
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Flyway owns the schema. Hibernate never alters tables.
+      ddl-auto: none
+    properties:
+      hibernate:
+        default_batch_fetch_size: 50
+
+  flyway:
+    enabled: true
+    # Lets Flyway adopt a database whose tables were created before
+    # migrations existed. All migrations are written to be idempotent.
+    baseline-on-migrate: true
+    baseline-version: 0
+
+server:
+  port: ${PORT:8080}
+  forward-headers-strategy: framework
+  shutdown: graceful
+  error:
+    include-stacktrace: never
+    include-message: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+
+springdoc:
+  api-docs:
+    enabled: ${API_DOCS_ENABLED:true}
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+
+app:
+  # Business time zone used for "today", check-in times and leave dates.
+  timezone: ${APP_TIMEZONE:Asia/Kolkata}
+
+  jwt:
+    # Falls back to the legacy jwt.secret / jwt.expiration keys so existing
+    # local application.properties files keep working.
+    secret: ${JWT_SECRET:${jwt.secret:}}
+    expiration-ms: ${JWT_EXPIRATION_MS:${jwt.expiration:28800000}}
+
+  cors:
+    # Comma separated. Wildcards are allowed, e.g. https://*.vercel.app
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173,http://localhost:4173,http://localhost:3000}
+
+  setup:
+    # When set, the one-time "create first admin" screen requires this token.
+    token: ${SETUP_TOKEN:}
+
+  security:
+    max-failed-logins: ${MAX_FAILED_LOGINS:5}
+    lockout-minutes: ${LOCKOUT_MINUTES:15}
+
+  demo:
+    # Seeds sample departments, employees, attendance and leave into an
+    # EMPTY database on startup. Never touches a database that has data.
+    enabled: ${DEMO_DATA:false}
+    password: ${DEMO_PASSWORD:Demo@12345}
+
+  leave:
+    exclude-weekends: true
+    max-days-per-request: 30
+    # Annual entitlement per leave type. UNPAID has no limit.
+    quotas:
+      CASUAL: 12
+      SICK: 10
+      EARNED: 15
+
+  attendance:
+    # Check-outs shorter than this are recorded as HALF_DAY.
+    half-day-threshold-minutes: 240

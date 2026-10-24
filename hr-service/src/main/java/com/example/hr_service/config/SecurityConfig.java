@@ -1,164 +1,101 @@
 package com.example.hr_service.config;
 
+import com.example.hr_service.repository.UserRepository;
 import com.example.hr_service.security.JwtAuthenticationFilter;
-
+import com.example.hr_service.security.JwtService;
+import com.example.hr_service.security.RestSecurityHandlers;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.time.Duration;
 import java.util.List;
 
+/**
+ * Stateless JWT security.
+ *
+ * URL rules here only separate public from authenticated endpoints.
+ * Role checks live next to each endpoint as {@code @PreAuthorize}, and
+ * ownership/hierarchy rules (employees see only their own data, HR cannot
+ * manage administrators) are enforced in the service layer.
+ */
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
-        private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                   JwtService jwtService,
+                                                   UserRepository userRepository) throws Exception {
+        http
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(Customizer.withDefaults())
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .logout(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(errors -> errors
+                        .authenticationEntryPoint(RestSecurityHandlers.authenticationEntryPoint())
+                        .accessDeniedHandler(RestSecurityHandlers.accessDeniedHandler()))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/error").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/setup/status").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/setup/first-admin").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
+                        .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**")
+                        .permitAll()
+                        .anyRequest().authenticated())
+                .addFilterBefore(new JwtAuthenticationFilter(jwtService, userRepository),
+                        UsernamePasswordAuthenticationFilter.class);
 
-        public SecurityConfig(
-                        JwtAuthenticationFilter jwtAuthenticationFilter) {
+        return http.build();
+    }
 
-                this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-        }
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
-        @Bean
-        public SecurityFilterChain securityFilterChain(
-                        HttpSecurity http) throws Exception {
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+        return configuration.getAuthenticationManager();
+    }
 
-                http
-                                .csrf(csrf -> csrf.disable())
+    /**
+     * Origins come from ALLOWED_ORIGINS (comma separated, wildcards allowed).
+     * The API uses bearer tokens rather than cookies, so credentials are not
+     * needed for cross-origin calls.
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource(AppProperties properties) {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOriginPatterns(properties.cors().originPatterns());
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With"));
+        configuration.setExposedHeaders(List.of("Retry-After"));
+        configuration.setAllowCredentials(false);
+        configuration.setMaxAge(Duration.ofHours(1));
 
-                                .cors(cors -> cors.configurationSource(
-                                                corsConfigurationSource()))
-
-                                .sessionManagement(session -> session.sessionCreationPolicy(
-                                                SessionCreationPolicy.STATELESS))
-
-                                .authorizeHttpRequests(auth -> auth
-                                                .requestMatchers("/error").permitAll()
-
-                                                // Authentication
-                                                .requestMatchers("/api/auth/**")
-                                                .permitAll()
-
-                                                // Initial setup
-                                                .requestMatchers("/api/setup/**")
-                                                .permitAll()
-
-                                                // User management remains restricted to ADMIN/HR.
-                                                .requestMatchers("/api/users/**")
-                                                .hasAnyRole("ADMIN", "HR")
-
-                                                // Audit logs remain ADMIN-only.
-                                                .requestMatchers("/api/audit-logs/**")
-                                                .hasRole("ADMIN")
-
-                                                // Master data remains ADMIN/HR-only.
-                                                .requestMatchers(
-                                                                "/api/departments/**",
-                                                                "/api/designations/**",
-                                                                "/api/roles/**")
-                                                .hasAnyAuthority("ROLE_ADMIN", "ROLE_HR")
-
-                                                // Employee master-data creation/deletion remains ADMIN/HR-only.
-                                                .requestMatchers(HttpMethod.POST, "/api/employees/**")
-                                                .hasAnyRole("ADMIN", "HR")
-                                                .requestMatchers(HttpMethod.DELETE, "/api/employees/**")
-                                                .hasAnyRole("ADMIN", "HR")
-
-                                                // Attendance records are maintained by ADMIN/HR. Employees can only read
-                                                // their own records (enforced in AttendanceServiceImpl).
-                                                .requestMatchers(HttpMethod.POST, "/api/attendance/**")
-                                                .hasAnyRole("ADMIN", "HR")
-                                                .requestMatchers(HttpMethod.PUT, "/api/attendance/**")
-                                                .hasAnyRole("ADMIN", "HR")
-                                                .requestMatchers(HttpMethod.DELETE, "/api/attendance/**")
-                                                .hasAnyRole("ADMIN", "HR")
-
-                                                // Projects and employee/project assignments are ADMIN/HR managed.
-                                                .requestMatchers(HttpMethod.POST, "/api/projects/**")
-                                                .hasAnyRole("ADMIN", "HR")
-                                                .requestMatchers(HttpMethod.PUT, "/api/projects/**")
-                                                .hasAnyRole("ADMIN", "HR")
-                                                .requestMatchers(HttpMethod.DELETE, "/api/projects/**")
-                                                .hasAnyRole("ADMIN", "HR")
-                                                .requestMatchers(HttpMethod.POST, "/api/employee-projects/**")
-                                                .hasAnyRole("ADMIN", "HR")
-                                                .requestMatchers(HttpMethod.PUT, "/api/employee-projects/**")
-                                                .hasAnyRole("ADMIN", "HR")
-                                                .requestMatchers(HttpMethod.DELETE, "/api/employee-projects/**")
-                                                .hasAnyRole("ADMIN", "HR")
-
-                                                // All remaining endpoints require authentication. Ownership/field-level
-                                                // rules for EMPLOYEE are enforced in the service layer.
-                                                .anyRequest()
-                                                .authenticated())
-
-                                .addFilterBefore(
-                                                jwtAuthenticationFilter,
-                                                UsernamePasswordAuthenticationFilter.class);
-
-                return http.build();
-        }
-
-        @Bean
-        public PasswordEncoder passwordEncoder() {
-
-                return new BCryptPasswordEncoder();
-        }
-
-        @Bean
-        public AuthenticationManager authenticationManager(
-                        AuthenticationConfiguration configuration)
-                        throws Exception {
-
-                return configuration.getAuthenticationManager();
-        }
-
-        @Bean
-        public CorsConfigurationSource corsConfigurationSource() {
-
-                CorsConfiguration configuration = new CorsConfiguration();
-
-                configuration.setAllowedOrigins(
-                                List.of("http://localhost:5173"));
-
-                configuration.setAllowedMethods(
-                                List.of(
-                                                "GET",
-                                                "POST",
-                                                "PUT",
-                                                "DELETE",
-                                                "OPTIONS"));
-
-                configuration.setAllowedHeaders(
-                                List.of("*"));
-
-                configuration.setAllowCredentials(true);
-
-                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-
-                source.registerCorsConfiguration(
-                                "/**",
-                                configuration);
-
-                return source;
-        }
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
 }

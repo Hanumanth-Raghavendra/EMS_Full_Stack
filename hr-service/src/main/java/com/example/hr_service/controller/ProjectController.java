@@ -1,12 +1,22 @@
 package com.example.hr_service.controller;
 
-import com.example.hr_service.dto.ProjectRequestDTO;
-import com.example.hr_service.dto.ProjectResponseDTO;
+import com.example.hr_service.dto.ProjectRequest;
+import com.example.hr_service.dto.ProjectResponse;
+import com.example.hr_service.entity.ProjectStatus;
 import com.example.hr_service.service.ProjectService;
-
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
@@ -21,47 +31,35 @@ public class ProjectController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ProjectResponseDTO>> getAllProjects() {
-
-        return ResponseEntity.ok(projectService.getAllProjects());
+    @PreAuthorize(Access.AUTHENTICATED)
+    public List<ProjectResponse> list(@RequestParam(required = false) String search,
+                                      @RequestParam(required = false) ProjectStatus status) {
+        return projectService.listProjects(search, status);
     }
 
     @GetMapping("/{projectId}")
-    public ResponseEntity<ProjectResponseDTO> getProjectById(
-            @PathVariable Long projectId) {
-
-        ProjectResponseDTO project = projectService.getProjectById(projectId);
-
-        if (project == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(project);
+    @PreAuthorize(Access.AUTHENTICATED)
+    public ProjectResponse get(@PathVariable Long projectId) {
+        return projectService.getProject(projectId);
     }
 
     @PostMapping
-    public ResponseEntity<ProjectResponseDTO> createProject(
-            @Valid @RequestBody ProjectRequestDTO projectRequestDTO) {
-
-        return ResponseEntity.ok(
-                projectService.createProject(projectRequestDTO));
+    @PreAuthorize(Access.MANAGER)
+    @ResponseStatus(HttpStatus.CREATED)
+    public ProjectResponse create(@Valid @RequestBody ProjectRequest request) {
+        return projectService.createProject(request);
     }
 
     @PutMapping("/{projectId}")
-    public ResponseEntity<ProjectResponseDTO> updateProject(
-            @PathVariable Long projectId,
-            @Valid @RequestBody ProjectRequestDTO projectRequestDTO) {
-
-        return ResponseEntity.ok(
-                projectService.updateProject(projectId, projectRequestDTO));
+    @PreAuthorize(Access.MANAGER)
+    public ProjectResponse update(@PathVariable Long projectId, @Valid @RequestBody ProjectRequest request) {
+        return projectService.updateProject(projectId, request);
     }
 
     @DeleteMapping("/{projectId}")
-    public ResponseEntity<Void> deleteProject(
-            @PathVariable Long projectId) {
-
+    @PreAuthorize(Access.MANAGER)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long projectId) {
         projectService.deleteProject(projectId);
-
-        return ResponseEntity.noContent().build();
     }
 }

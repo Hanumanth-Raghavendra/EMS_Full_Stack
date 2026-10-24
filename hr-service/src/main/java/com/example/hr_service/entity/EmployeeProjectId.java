@@ -2,6 +2,7 @@ package com.example.hr_service.entity;
 
 import jakarta.persistence.Embeddable;
 import java.io.Serializable;
+import java.util.Objects;
 
 @Embeddable
 public class EmployeeProjectId implements Serializable {
@@ -15,6 +16,23 @@ public class EmployeeProjectId implements Serializable {
     public EmployeeProjectId(Long employeeId, Long projectId) {
         this.employeeId = employeeId;
         this.projectId = projectId;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof EmployeeProjectId that)) {
+            return false;
+        }
+        return Objects.equals(employeeId, that.employeeId)
+                && Objects.equals(projectId, that.projectId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(employeeId, projectId);
     }
 
     public Long getEmployeeId() {
