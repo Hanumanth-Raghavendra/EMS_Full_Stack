@@ -5,7 +5,7 @@ export const PATTERNS = {
     personName: /^[A-Za-z]+(?:[ '.-][A-Za-z]+)*$/,
     phone: /^[6-9][0-9]{9}$/,
     email: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/,
-    username: /^[A-Za-z0-9._-]{3,50}$/,
+    username: /^[A-Za-z0-9._-]{2,50}$/,
     password: /^(?=.*[A-Za-z])(?=.*\d).{8,64}$/,
 }
 
@@ -14,7 +14,7 @@ export const MESSAGES = {
     personName: 'Use letters only; spaces, apostrophes, dots and hyphens between words are fine.',
     phone: 'Enter a 10-digit mobile number starting with 6-9.',
     email: 'Enter a valid email address.',
-    username: '3-50 characters: letters, numbers, dots, hyphens or underscores.',
+    username: '2-50 characters: letters, numbers, dots, hyphens or underscores.',
     password: '8-64 characters with at least one letter and one number.',
 }
 
