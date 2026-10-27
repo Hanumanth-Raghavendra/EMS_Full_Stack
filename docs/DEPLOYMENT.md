@@ -72,7 +72,19 @@ Flyway creates all tables on the first start. Nothing else to run.
   Remember that anyone with the link can sign in as admin; for a public portfolio consider a separate demo database you can reset.
 - **Real use:** open the web app → *Set up* → create the administrator. Enter the `SETUP_TOKEN` value from Render (Environment tab). The setup screen disappears once an administrator exists.
 
-## 5. Checklist
+## 5. Keep the free API awake (optional)
+
+Render's free tier sleeps after ~15 minutes without traffic. Visitors who arrive then wait about a minute, and the sign-in page cannot show the demo accounts until the API answers.
+
+The repository includes `.github/workflows/keep-alive.yml`, which pings the API every 5 minutes (`/actuator/health`, then `/api/setup/status`, which also keeps the database warm). It starts working once it is on the default branch. Notes:
+
+- If your API address differs from the one in the file, add a repository variable named `API_URL` (Settings > Secrets and variables > Actions > Variables); no code change needed.
+- GitHub runs scheduled jobs best-effort and can start them several minutes late. For a second line of defence add a free external pinger such as [cron-job.org](https://cron-job.org): a GET to `<your-api>/actuator/health` every 5 minutes, with a timeout of 60 seconds or more.
+- GitHub pauses scheduled workflows on public repositories after 60 days without repository activity. Re-enable it from the Actions tab if that happens.
+- A failed run (API down after 4 attempts) sends you GitHub's usual failed-workflow email, so you find out before visitors do.
+- Render's free plan gives 750 instance-hours per month, enough for one service running around the clock.
+
+## 6. Checklist
 
 - [ ] `/actuator/health` on the API returns `UP`
 - [ ] Web app loads and the sign-in page shows no "Cannot reach the server" message
