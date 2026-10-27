@@ -36,3 +36,7 @@ Thumbs.db
 EMS_Backups/
 PatchFiles/
 hr-service-current-source.zip
+
+# Neon CLI local state and its npm packages
+.neon
+/node_modules/

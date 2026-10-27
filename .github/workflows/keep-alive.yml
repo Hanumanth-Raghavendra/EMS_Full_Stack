@@ -1,0 +1,61 @@
+name: Keep API awake
+
+# Render's free tier puts the API to sleep after ~15 minutes without traffic,
+# and the next visitor waits about a minute (long enough that the demo
+# accounts on the sign-in page never appear). Pinging it more often than that
+# keeps it awake. The ping also touches the database, which keeps Neon warm.
+#
+# GitHub runs scheduled workflows on a best-effort basis (a run can start
+# several minutes late), so also add an external pinger such as cron-job.org
+# for a second line of defence. See docs/DEPLOYMENT.md.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    name: Ping API
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      # Override with a repository variable (Settings > Secrets and variables >
+      # Actions > Variables) if the API address ever changes.
+      API_URL: ${{ vars.API_URL || 'https://ems-api-but0.onrender.com' }}
+    steps:
+      - name: Wake the API and check it is healthy
+        shell: bash
+        run: |
+          set -u
+          base="${API_URL%/}"
+
+          # A sleeping instance needs up to ~60-90s to boot, so allow a long
+          # first request and a few retries before calling it a failure.
+          for attempt in 1 2 3 4; do
+            body=$(curl -sS --max-time 120 "$base/actuator/health" || true)
+            echo "attempt $attempt: $body"
+            if echo "$body" | grep -q '"status":"UP"'; then
+              break
+            fi
+            if [ "$attempt" = 4 ]; then
+              echo "::error::API did not report UP after 4 attempts ($base/actuator/health)"
+              exit 1
+            fi
+            sleep 20
+          done
+
+          # Hits the database too, and is the call the sign-in page makes to
+          # show the demo accounts.
+          code=$(curl -sS --max-time 60 -o /dev/null -w '%{http_code}' "$base/api/setup/status" || true)
+          echo "setup/status -> HTTP $code"
+          if [ "$code" != "200" ]; then
+            echo "::error::GET /api/setup/status returned HTTP $code"
+            exit 1
+          fi
